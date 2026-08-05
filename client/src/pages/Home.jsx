@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createRoom } from "../services/roomService";
+import { createRoom, joinRoom } from "../services/roomService";
 
 function Home() {
   const [username, setUsername] = useState("");
   const [roomName, setRoomName] = useState("");
+  const [roomId, setRoomId] = useState("");
 
   const navigate = useNavigate();
 
@@ -23,6 +24,35 @@ function Home() {
       console.log(data);
 
       navigate(`/room/${data.room.roomId}`, {
+        state: {
+          username,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleJoinRoom = async () => {
+    if (!username || !roomId) {
+      alert("Please enter username and room code");
+      return;
+    }
+
+    try {
+      const data = await joinRoom({
+        roomId,
+        username,
+      });
+
+      console.log(data);
+
+      if (!data.success) {
+        alert(data.message);
+        return;
+      }
+
+      navigate(`/room/${roomId}`, {
         state: {
           username,
         },
@@ -56,16 +86,22 @@ function Home() {
       <br />
       <br />
 
-      <button onClick={handleCreateRoom}>
-        Create Room
-      </button>
+      <button onClick={handleCreateRoom}>Create Room</button>
 
       <br />
       <br />
 
-      <button>
-        Join Room
-      </button>
+      <input
+        type="text"
+        placeholder="Enter Room Code"
+        value={roomId}
+        onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+      />
+
+      <br />
+      <br />
+
+      <button onClick={handleJoinRoom}>Join Room</button>
     </div>
   );
 }
