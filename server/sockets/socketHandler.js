@@ -38,7 +38,17 @@ const socketHandler = (io) => {
         console.error(error);
       }
     });
+    socket.on("change-video", ({ roomId, videoId }) => {
+      console.log("Host emitted change-video");
+      console.log("Room:", roomId);
+      console.log("Video:", videoId);
 
+      io.to(roomId).emit("video-changed", {
+        videoId,
+      });
+
+      console.log("Broadcasted video-changed");
+    });
     socket.on("disconnect", () => {
       console.log(`User Disconnected: ${socket.id}`);
     });

@@ -78,7 +78,7 @@ const joinRoom = async (req, res) => {
     }
 
     const alreadyJoined = room.participants.find(
-      (participant) => participant.username === username
+      (participant) => participant.username === username,
     );
 
     if (alreadyJoined) {
@@ -109,10 +109,40 @@ const joinRoom = async (req, res) => {
     });
   }
 };
+const changeVideo = async (req, res) => {
+  try {
+    const { roomId, videoId } = req.body;
 
+    const room = await Room.findOne({ roomId });
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: "Room not found",
+      });
+    }
+
+    room.currentVideo = videoId;
+
+    await room.save();
+
+    res.status(200).json({
+      success: true,
+      room,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
 // ================= EXPORTS =================
 
 module.exports = {
   createRoom,
   joinRoom,
+  changeVideo,
 };

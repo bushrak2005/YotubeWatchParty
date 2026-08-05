@@ -23,3 +23,15 @@ export const joinRoom = async (roomData) => {
 
   return await response.json();
 };
+
+export const changeVideo = async (videoData) => {
+  const response = await fetch(`${API_URL}/change-video`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(videoData),
+  });
+
+  return await response.json();
+};
