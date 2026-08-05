@@ -1,18 +1,42 @@
+const Room = require("../models/Room");
+
 const socketHandler = (io) => {
   io.on("connection", (socket) => {
     console.log(`User Connected: ${socket.id}`);
 
     // Join Room
-    socket.on("join-room", ({ roomId, username }) => {
-      socket.join(roomId);
+    socket.on("join-room", async ({ roomId, username }) => {
+      try {
+        socket.join(roomId);
 
-      console.log(`${username} joined room ${roomId}`);
+        console.log(`${username} joined room ${roomId}`);
 
-      io.to(roomId).emit("user-joined", {
-        message: `${username} joined the room`,
-        username,
-        roomId,
-      });
+        // Find room in MongoDB
+        const room = await Room.findOne({ roomId });
+
+        if (!room) {
+          return;
+        }
+
+        // Find participant
+        const participant = room.participants.find(
+          (p) => p.username === username,
+        );
+
+        // Update socket id
+        if (participant) {
+          participant.socketId = socket.id;
+        }
+
+        await room.save();
+
+        // Broadcast updated participants
+        io.to(roomId).emit("user-joined", {
+          participants: room.participants,
+        });
+      } catch (error) {
+        console.error(error);
+      }
     });
 
     socket.on("disconnect", () => {
