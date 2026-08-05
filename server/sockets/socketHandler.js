@@ -46,8 +46,19 @@ const socketHandler = (io) => {
       io.to(roomId).emit("video-changed", {
         videoId,
       });
+    });
+    // Play Video
+    socket.on("play-video", ({ roomId }) => {
+      console.log("Received play-video:", roomId);
 
-      console.log("Broadcasted video-changed");
+      io.to(roomId).emit("play-video");
+    });
+
+    // Pause Video
+    socket.on("pause-video", ({ roomId }) => {
+      console.log("Received pause-video:", roomId);
+
+      io.to(roomId).emit("pause-video");
     });
     socket.on("disconnect", () => {
       console.log(`User Disconnected: ${socket.id}`);

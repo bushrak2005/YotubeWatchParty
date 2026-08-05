@@ -1,6 +1,10 @@
 import YouTube from "react-youtube";
 
-function YouTubePlayer({ videoId }) {
+function YouTubePlayer({
+  videoId,
+  onReady,
+  onStateChange,
+}) {
   const options = {
     width: "900",
     height: "500",
@@ -13,6 +17,8 @@ function YouTubePlayer({ videoId }) {
     <YouTube
       videoId={videoId}
       opts={options}
+      onReady={onReady}
+      onStateChange={onStateChange}
     />
   );
 }

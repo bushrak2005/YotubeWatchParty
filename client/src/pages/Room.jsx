@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import socket from "../socket/socket";
 import YouTubePlayer from "../components/YouTubePlayer";
@@ -13,6 +13,7 @@ function Room() {
   const [participants, setParticipants] = useState([]);
   const [videoUrl, setVideoUrl] = useState("");
   const [videoId, setVideoId] = useState("");
+  const playerRef = useRef(null);
 
   useEffect(() => {
     socket.emit("join-room", {
@@ -30,9 +31,27 @@ function Room() {
 
       setVideoId(data.videoId);
     });
+    socket.on("play-video", () => {
+      console.log("Received play-video");
+      console.log("Player is:", playerRef.current);
+
+      if (playerRef.current) {
+        playerRef.current.playVideo();
+      }
+    });
+    socket.on("pause-video", () => {
+      console.log("Received pause-video");
+      console.log("Player is:", playerRef.current);
+
+      if (playerRef.current) {
+        playerRef.current.pauseVideo();
+      }
+    });
     return () => {
       socket.off("user-joined");
       socket.off("video-changed");
+      socket.off("play-video");
+      socket.off("pause-video");
     };
   }, [roomId, username]);
   const handleChangeVideo = async () => {
@@ -60,6 +79,14 @@ function Room() {
     } catch (error) {
       console.error(error);
     }
+  };
+  const handlePlayerReady = (event) => {
+    console.log("Player Ready");
+
+    playerRef.current = event.target;
+  };
+  const handlePlayerStateChange = (event) => {
+    console.log("Player State:", event.data);
   };
 
   return (
@@ -94,9 +121,11 @@ function Room() {
 
       <hr />
 
-      <h2>Video Player</h2>
-
-      <YouTubePlayer videoId={videoId} />
+      <YouTubePlayer
+        videoId={videoId}
+        onReady={handlePlayerReady}
+        onStateChange={handlePlayerStateChange}
+      />
     </div>
   );
 }
