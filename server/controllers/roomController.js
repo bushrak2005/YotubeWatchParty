@@ -15,10 +15,7 @@ const createRoom = async (req, res) => {
     }
 
     const room = new Room({
-      roomId: uuidv4().replace(/-/g, "").substring(0, 6).toUpperCase(),
-
-      roomName,
-
+      roomId: uuidv4().replace(/-/g, "").substring(0, 6).toUpperCase(),roomName,
       host: {
         username,
         socketId: "",
@@ -31,23 +28,21 @@ const createRoom = async (req, res) => {
           role: "Host",
         },
       ],
-
-      currentVideo: "",
+      currentVideo: "", 
       currentTime: 0,
       isPlaying: false,
     });
 
     await room.save();
 
-    console.log("Saved Room:", room);
+    console.log("Created Room:", room.roomId, "for Host:", username);
 
     res.status(201).json({
       success: true,
       room,
     });
   } catch (error) {
-    console.error(error);
-
+    console.error("createRoom error:", error);
     res.status(500).json({
       success: false,
       message: "Server Error",
@@ -78,37 +73,35 @@ const joinRoom = async (req, res) => {
     }
 
     const alreadyJoined = room.participants.find(
-      (participant) => participant.username === username,
+      (p) => p.username.toLowerCase() === username.toLowerCase()
     );
 
-    if (alreadyJoined) {
-      return res.status(400).json({
-        success: false,
-        message: "Username already exists in this room",
+    // If user already exists in room, allow reconnect instead of throwing error
+    if (!alreadyJoined) {
+      room.participants.push({
+        username,
+        socketId: "",
+        role: "Participant",
       });
+
+      await room.save();
     }
-
-    room.participants.push({
-      username,
-      socketId: "",
-      role: "Participant",
-    });
-
-    await room.save();
 
     res.status(200).json({
       success: true,
       room,
     });
   } catch (error) {
-    console.error(error);
-
+    console.error("joinRoom error:", error);
     res.status(500).json({
       success: false,
       message: "Server Error",
     });
   }
 };
+
+// ================= CHANGE VIDEO =================
+
 const changeVideo = async (req, res) => {
   try {
     const { roomId, videoId } = req.body;
@@ -131,15 +124,14 @@ const changeVideo = async (req, res) => {
       room,
     });
   } catch (error) {
-    console.error(error);
-
+    console.error("changeVideo error:", error);
     res.status(500).json({
       success: false,
       message: "Server Error",
     });
   }
 };
-// ================= EXPORTS =================
+
 
 module.exports = {
   createRoom,
