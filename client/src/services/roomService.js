@@ -11,3 +11,15 @@ export const createRoom = async (roomData) => {
 
   return await response.json();
 };
+
+export const joinRoom = async (roomData) => {
+  const response = await fetch(`${API_URL}/join`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(roomData),
+  });
+
+  return await response.json();
+};
