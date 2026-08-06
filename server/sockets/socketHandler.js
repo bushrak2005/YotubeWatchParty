@@ -21,7 +21,7 @@ const socketHandler = (io) => {
 
         // Case-insensitive lookup for existing participant in MongoDB
         let participant = room.participants.find(
-          (p) => p.username.toLowerCase() === username.toLowerCase()
+          (p) => p.username.toLowerCase() === username.toLowerCase(),
         );
 
         let role = "Participant";
@@ -64,7 +64,6 @@ const socketHandler = (io) => {
         io.to(roomId).emit("user-joined", {
           participants: room.participants,
         });
-
       } catch (error) {
         console.error("join-room error:", error);
       }
@@ -100,7 +99,7 @@ const socketHandler = (io) => {
         console.error("pause-video error:", error);
       }
     });
-socket.on("seek-video", async ({ roomId, currentTime }) => {
+    socket.on("seek-video", async ({ roomId, currentTime }) => {
       try {
         await Room.updateOne({ roomId }, { currentTime });
         socket.to(roomId).emit("seek-video", { currentTime });
@@ -115,7 +114,7 @@ socket.on("seek-video", async ({ roomId, currentTime }) => {
         if (!room) return;
 
         const target = room.participants.find(
-          (p) => p.username.toLowerCase() === targetUsername.toLowerCase()
+          (p) => p.username.toLowerCase() === targetUsername.toLowerCase(),
         );
 
         if (target) {
@@ -138,7 +137,7 @@ socket.on("seek-video", async ({ roomId, currentTime }) => {
         if (!room) return;
 
         const targetIndex = room.participants.findIndex(
-          (p) => p.username.toLowerCase() === targetUsername.toLowerCase()
+          (p) => p.username.toLowerCase() === targetUsername.toLowerCase(),
         );
 
         if (targetIndex !== -1) {
@@ -165,7 +164,8 @@ socket.on("seek-video", async ({ roomId, currentTime }) => {
       io.to(roomId).emit("receive-message", {
         username,
         message,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        // Send standard ISO string instead of pre-formatted server time
+        time: new Date().toISOString(),
       });
     });
 

@@ -25,6 +25,20 @@ function Room() {
 
   const canControl = userRole === "Host" || userRole === "Moderator";
 
+  // Format message timestamp dynamically to local user time
+  const formatMessageTime = (timeString) => {
+    if (!timeString) return "";
+    const date = new Date(timeString);
+    // Checks if valid ISO/Date string; falls back if server sends raw formatted text
+    return isNaN(date.getTime())
+      ? timeString
+      : date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        });
+  };
+
   // Auto-scroll chat
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,7 +57,9 @@ function Room() {
     socket.on("user-joined", (data) => {
       const list = data?.participants || [];
       setParticipants(list);
-      const me = list.find((p) => p.username.toLowerCase() === username.toLowerCase());
+      const me = list.find(
+        (p) => p.username.toLowerCase() === username.toLowerCase(),
+      );
       if (me) setUserRole(me.role);
     });
 
@@ -99,7 +115,9 @@ function Room() {
     socket.on("role-assigned", (data) => {
       const list = data?.participants || [];
       setParticipants(list);
-      const me = list.find((p) => p.username.toLowerCase() === username.toLowerCase());
+      const me = list.find(
+        (p) => p.username.toLowerCase() === username.toLowerCase(),
+      );
       if (me) setUserRole(me.role);
     });
 
@@ -130,7 +148,7 @@ function Room() {
     if (!videoUrl) return;
 
     const match = videoUrl.match(
-      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
+      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/,
     );
     const id = match ? match[1] : null;
 
@@ -254,7 +272,9 @@ function Room() {
               {participants.map((p) => (
                 <div key={p.username} className="participant-item">
                   <div>
-                    <span style={{ fontWeight: 500, fontSize: "0.9rem" }}>{p.username} </span>
+                    <span style={{ fontWeight: 500, fontSize: "0.9rem" }}>
+                      {p.username}{" "}
+                    </span>
                     <span className={getBadgeClass(p.role)}>{p.role}</span>
                   </div>
 
@@ -285,7 +305,14 @@ function Room() {
             <h3 className="card-title">Live Chat</h3>
             <div className="chat-box">
               {messages.length === 0 ? (
-                <p style={{ color: "#666", fontStyle: "italic", textAlign: "center", marginTop: "20px" }}>
+                <p
+                  style={{
+                    color: "#666",
+                    fontStyle: "italic",
+                    textAlign: "center",
+                    marginTop: "20px",
+                  }}
+                >
                   No messages yet. Say hi!
                 </p>
               ) : (
@@ -293,7 +320,7 @@ function Room() {
                   <div key={idx} className="chat-message">
                     <div className="chat-meta">
                       <span className="chat-user">{msg.username}</span>
-                      <span>{msg.time}</span>
+                      <span>{formatMessageTime(msg.time)}</span>
                     </div>
                     <div>{msg.message}</div>
                   </div>
@@ -302,7 +329,10 @@ function Room() {
               <div ref={chatBottomRef} />
             </div>
 
-            <form onSubmit={handleSendMessage} style={{ display: "flex", gap: "8px" }}>
+            <form
+              onSubmit={handleSendMessage}
+              style={{ display: "flex", gap: "8px" }}
+            >
               <input
                 type="text"
                 className="input-field"
