@@ -1,4 +1,5 @@
-const API_URL = "http://localhost:5000/api/rooms";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+const API_URL = `${BACKEND_URL}/api/rooms`;
 
 export const createRoom = async (roomData) => {
   const response = await fetch(`${API_URL}/create`, {
