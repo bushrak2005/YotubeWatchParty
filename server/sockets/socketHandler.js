@@ -19,19 +19,17 @@ const socketHandler = (io) => {
           return;
         }
 
-        // Case-insensitive lookup for existing participant in MongoDB
+        // Case-insensitive lookup for existing participant
         let participant = room.participants.find(
-          (p) => p.username.toLowerCase() === username.toLowerCase(),
+          (p) => p.username.toLowerCase() === username.toLowerCase()
         );
 
         let role = "Participant";
 
         if (participant) {
-          // Update socketId and retain assigned role (Host / Moderator / Participant)
           participant.socketId = socket.id;
           role = participant.role;
         } else {
-          // Fallback: If no participants exist, make first user Host
           if (room.participants.length === 0) {
             role = "Host";
           }
@@ -45,7 +43,7 @@ const socketHandler = (io) => {
         }
 
         // Update main host socketId if user is Host
-        if (role === "Host") {
+        if (role === "Host" && room.host) {
           room.host.socketId = socket.id;
           room.host.username = username;
         }
@@ -54,10 +52,12 @@ const socketHandler = (io) => {
 
         console.log(`User ${username} connected with role: ${role}`);
 
-        // Emit current video and user role directly back to joining socket
+        // Emit current room state and role to the joining socket
         socket.emit("sync-state", {
           videoId: room.currentVideo || "",
           userRole: role,
+          isPlaying: room.isPlaying,
+          currentTime: room.currentTime,
         });
 
         // Broadcast updated participant list to everyone in room
@@ -83,6 +83,7 @@ const socketHandler = (io) => {
     socket.on("play-video", async ({ roomId, currentTime }) => {
       try {
         await Room.updateOne({ roomId }, { isPlaying: true, currentTime });
+        // Broadcasts to all OTHER sockets in the room
         socket.to(roomId).emit("play-video", { currentTime });
       } catch (error) {
         console.error("play-video error:", error);
@@ -93,28 +94,32 @@ const socketHandler = (io) => {
     socket.on("pause-video", async ({ roomId, currentTime }) => {
       try {
         await Room.updateOne({ roomId }, { isPlaying: false, currentTime });
-        // Emits pause event to every socket in the room EXCEPT the sender
+        // Broadcasts to all OTHER sockets in the room
         socket.to(roomId).emit("pause-video", { currentTime });
       } catch (error) {
         console.error("pause-video error:", error);
       }
     });
+
+    // --- 5. SEEK VIDEO ---
     socket.on("seek-video", async ({ roomId, currentTime }) => {
       try {
         await Room.updateOne({ roomId }, { currentTime });
+        // Broadcasts to all OTHER sockets in the room
         socket.to(roomId).emit("seek-video", { currentTime });
       } catch (error) {
         console.error("seek-video error:", error);
       }
     });
-    // --- 5. ASSIGN ROLE ---
+
+    // --- 6. ASSIGN ROLE ---
     socket.on("assign-role", async ({ roomId, targetUsername, newRole }) => {
       try {
         const room = await Room.findOne({ roomId });
         if (!room) return;
 
         const target = room.participants.find(
-          (p) => p.username.toLowerCase() === targetUsername.toLowerCase(),
+          (p) => p.username.toLowerCase() === targetUsername.toLowerCase()
         );
 
         if (target) {
@@ -130,14 +135,14 @@ const socketHandler = (io) => {
       }
     });
 
-    // --- 6. REMOVE PARTICIPANT ---
+    // --- 7. REMOVE PARTICIPANT ---
     socket.on("remove-participant", async ({ roomId, targetUsername }) => {
       try {
         const room = await Room.findOne({ roomId });
         if (!room) return;
 
         const targetIndex = room.participants.findIndex(
-          (p) => p.username.toLowerCase() === targetUsername.toLowerCase(),
+          (p) => p.username.toLowerCase() === targetUsername.toLowerCase()
         );
 
         if (targetIndex !== -1) {
@@ -157,19 +162,24 @@ const socketHandler = (io) => {
         console.error("remove-participant error:", error);
       }
     });
-    // --- 7. SEND CHAT MESSAGE ---
-    socket.on("send-message", ({ roomId, username, message }) => {
-      if (!message || !message.trim()) return;
 
-      io.to(roomId).emit("receive-message", {
-        username,
-        message,
-        // Send standard ISO string instead of pre-formatted server time
-        time: new Date().toISOString(),
-      });
+    // --- 8. SEND CHAT MESSAGE ---
+    socket.on("send-message", ({ roomId, username, message }) => {
+      try {
+        if (!message || !message.trim()) return;
+
+        // io.to ensures EVERYONE in the room receives the message
+        io.to(roomId).emit("receive-message", {
+          username,
+          message,
+          time: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error("send-message error:", error);
+      }
     });
 
-    // --- 8. DISCONNECT ---
+    // --- 9. DISCONNECT ---
     socket.on("disconnect", () => {
       console.log(`User Disconnected: ${socket.id}`);
     });

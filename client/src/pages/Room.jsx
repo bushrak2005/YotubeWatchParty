@@ -47,14 +47,28 @@ function Room() {
   useEffect(() => {
     if (!socket) return;
 
-    socket.emit("join-room", { roomId, username });
+    // Helper to join room
+    const joinRoomSession = () => {
+      console.log("Emitting join-room:", { roomId, username });
+      socket.emit("join-room", { roomId, username });
+    };
+
+    // Join room immediately if already connected
+    if (socket.connected) {
+      joinRoomSession();
+    }
+
+    // Auto re-join if socket reconnects after network drop
+    socket.on("connect", joinRoomSession);
 
     socket.on("sync-state", (data) => {
+      console.log("Received sync-state:", data);
       if (data?.videoId) setVideoId(data.videoId);
       if (data?.userRole) setUserRole(data.userRole);
     });
 
     socket.on("user-joined", (data) => {
+      console.log("User joined update:", data);
       const list = data?.participants || [];
       setParticipants(list);
       const me = list.find(
@@ -72,6 +86,7 @@ function Room() {
     });
 
     socket.on("play-video", async ({ currentTime }) => {
+      console.log("Received play-video event:", currentTime);
       if (!playerRef.current) return;
       isRemoteAction.current = true;
       try {
@@ -88,6 +103,7 @@ function Room() {
     });
 
     socket.on("pause-video", async ({ currentTime }) => {
+      console.log("Received pause-video event:", currentTime);
       if (!playerRef.current) return;
       isRemoteAction.current = true;
       try {
@@ -101,6 +117,7 @@ function Room() {
     });
 
     socket.on("seek-video", async ({ currentTime }) => {
+      console.log("Received seek-video event:", currentTime);
       if (!playerRef.current) return;
       isRemoteAction.current = true;
       try {
@@ -127,10 +144,12 @@ function Room() {
     });
 
     socket.on("receive-message", (data) => {
+      console.log("Received message:", data);
       setMessages((prev) => [...prev, data]);
     });
 
     return () => {
+      socket.off("connect", joinRoomSession);
       socket.off("sync-state");
       socket.off("user-joined");
       socket.off("user-left");
