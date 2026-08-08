@@ -9,6 +9,9 @@ const socketHandler = (io) => {
       try {
         if (!roomId || !username) return;
 
+        socket.data.roomId = roomId;
+        socket.data.username = username;
+
         socket.join(roomId);
 
         console.log(`${username} joined room ${roomId}`);
@@ -151,7 +154,13 @@ const socketHandler = (io) => {
           await room.save();
 
           if (removedParticipant.socketId) {
-            io.to(removedParticipant.socketId).emit("kicked-out");
+            const kickedSocket = io.sockets.sockets.get(removedParticipant.socketId);
+            if (kickedSocket) {
+              kickedSocket.leave(roomId);
+              kickedSocket.emit("kicked-out", {
+                message: "You have been removed from the watch party.",
+              });
+            }
           }
 
           io.to(roomId).emit("user-joined", {
@@ -180,8 +189,33 @@ const socketHandler = (io) => {
     });
 
     // --- 9. DISCONNECT ---
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       console.log(`User Disconnected: ${socket.id}`);
+
+      const { roomId, username } = socket.data || {};
+
+      if (!roomId) return;
+
+      try {
+        const room = await Room.findOne({ roomId });
+        if (!room) return;
+
+        const participant = room.participants.find(
+          (p) => p.socketId === socket.id ||
+            (username && p.username.toLowerCase() === username.toLowerCase())
+        );
+
+        if (participant) {
+          participant.socketId = "";
+          await room.save();
+
+          io.to(roomId).emit("user-left", {
+            participants: room.participants,
+          });
+        }
+      } catch (error) {
+        console.error("disconnect cleanup error:", error);
+      }
     });
   });
 };
