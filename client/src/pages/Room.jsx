@@ -187,21 +187,22 @@ function Room() {
     });
 
     // 6. Kick Event Listener
-    // 6. Kick Event Listener (Works reliably on Phone & Desktop)
+    // 6. Kick Event Listener (Desktop & Mobile safe)
     socket.on("kicked-out", (data) => {
       console.log("kicked-out event received:", data);
       
       const kickedUser = (data?.targetUsernameLower || data?.targetUsername || "").trim().toLowerCase();
-      const currentUsername = (username || "").trim().toLowerCase();
+      const myUsername = (username || "").trim().toLowerCase();
 
-      if (kickedUser === currentUsername) {
+      if (kickedUser === myUsername) {
+        // 1. Show banner on top of UI
         setKickNotice("You have been removed from the watch party.");
-        
-        // Timeout ensures the native alert renders on desktop before React unmounts the page
+
+        // 2. Delay alert & navigation slightly so React doesn't unmount prematurely
         setTimeout(() => {
           alert("You have been removed from the watch party.");
           navigate("/");
-        }, 100);
+        }, 300);
       }
     });
 
