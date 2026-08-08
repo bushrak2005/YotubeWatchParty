@@ -160,16 +160,13 @@ function Room() {
     });
 
     socket.on("kicked-out", (data) => {
-      const reason = data?.message || "You have been removed from the watch party.";
-      setKickNotice(reason);
+      const kickedUser = data?.targetUsernameLower || "";
+      const myUsername = (username || "").toLowerCase();
 
-      if (redirectTimeout.current) {
-        clearTimeout(redirectTimeout.current);
-      }
-
-      redirectTimeout.current = setTimeout(() => {
+      if (kickedUser === myUsername) {
+        alert("You have been removed from the watch party.");
         navigate("/");
-      }, 1600);
+      }
     });
 
     socket.on("receive-message", (data) => {

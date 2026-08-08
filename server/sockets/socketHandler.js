@@ -24,7 +24,7 @@ const socketHandler = (io) => {
 
         // Case-insensitive lookup for existing participant
         let participant = room.participants.find(
-          (p) => p.username.toLowerCase() === username.toLowerCase()
+          (p) => p.username.toLowerCase() === username.toLowerCase(),
         );
 
         let role = "Participant";
@@ -59,13 +59,14 @@ const socketHandler = (io) => {
         socket.emit("sync-state", {
           videoId: room.currentVideo || "",
           userRole: role,
-          isPlaying: room.isPlaying,
-          currentTime: room.currentTime,
+          isPlaying: room.isPlaying || false,
+          currentTime: room.currentTime || 0,
         });
 
         // Broadcast updated participant list to everyone in room
         io.to(roomId).emit("user-joined", {
           participants: room.participants,
+          videoId: room.currentVideo || "",
         });
       } catch (error) {
         console.error("join-room error:", error);
@@ -122,15 +123,19 @@ const socketHandler = (io) => {
         if (!room) return;
 
         const target = room.participants.find(
-          (p) => p.username.toLowerCase() === targetUsername.toLowerCase()
+          (p) => p.username.toLowerCase() === targetUsername.toLowerCase(),
         );
 
         if (target) {
           target.role = newRole;
           await room.save();
 
+          // Broadcast role updates AND active video state to ensure immediate sync
           io.to(roomId).emit("role-assigned", {
             participants: room.participants,
+            videoId: room.currentVideo || "",
+            isPlaying: room.isPlaying || false,
+            currentTime: room.currentTime || 0,
           });
         }
       } catch (error) {
@@ -145,24 +150,24 @@ const socketHandler = (io) => {
         if (!room) return;
 
         const targetIndex = room.participants.findIndex(
-          (p) => p.username.toLowerCase() === targetUsername.toLowerCase()
+          (p) => p.username.toLowerCase() === targetUsername.toLowerCase(),
         );
 
         if (targetIndex !== -1) {
           const removedParticipant = room.participants[targetIndex];
+
+          // Remove from MongoDB array
           room.participants.splice(targetIndex, 1);
           await room.save();
 
-          if (removedParticipant.socketId) {
-            const kickedSocket = io.sockets.sockets.get(removedParticipant.socketId);
-            if (kickedSocket) {
-              kickedSocket.leave(roomId);
-              kickedSocket.emit("kicked-out", {
-                message: "You have been removed from the watch party.",
-              });
-            }
-          }
+          // Broadcast to EVERYONE in the room who got removed
+          // (This works even if their socket ID changed)
+          io.to(roomId).emit("kicked-out", {
+            targetUsername: removedParticipant.username,
+            targetUsernameLower: removedParticipant.username.toLowerCase(),
+          });
 
+          // Broadcast updated participant list
           io.to(roomId).emit("user-joined", {
             participants: room.participants,
           });
@@ -201,8 +206,9 @@ const socketHandler = (io) => {
         if (!room) return;
 
         const participant = room.participants.find(
-          (p) => p.socketId === socket.id ||
-            (username && p.username.toLowerCase() === username.toLowerCase())
+          (p) =>
+            p.socketId === socket.id ||
+            (username && p.username.toLowerCase() === username.toLowerCase()),
         );
 
         if (participant) {
