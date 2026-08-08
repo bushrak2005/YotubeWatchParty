@@ -256,16 +256,22 @@ function Room() {
 
     if (!canControl || !playerRef.current) return;
 
-    const currentTime = await playerRef.current.getCurrentTime();
+    if (event.data !== 1 && event.data !== 2) {
+      return;
+    }
 
-    if (event.data === 1) {
-      setIsPlaying(true);
-      socket.emit("play-video", { roomId, currentTime });
-    } else if (event.data === 2) {
-      setIsPlaying(false);
-      socket.emit("pause-video", { roomId, currentTime });
-    } else if (event.data === 3) {
-      socket.emit("seek-video", { roomId, currentTime });
+    try {
+      const currentTime = await playerRef.current.getCurrentTime();
+
+      if (event.data === 1) {
+        setIsPlaying(true);
+        socket.emit("play-video", { roomId, currentTime });
+      } else if (event.data === 2) {
+        setIsPlaying(false);
+        socket.emit("pause-video", { roomId, currentTime });
+      }
+    } catch (err) {
+      console.error("Error handling player state change:", err);
     }
   };
 
