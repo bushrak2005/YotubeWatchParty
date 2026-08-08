@@ -46,7 +46,7 @@ A full-stack, real-time synchronized YouTube Watch Party web application. Users 
 
 The WebSocket server is built using an **Event-Driven Architecture** with Socket.IO:
 
-```text
+```text 
   ┌─────────────────┐                 ┌─────────────────┐
   │   Client 1      │                 │    Client 2     │
   │   (Host UI)     │                 │ (Participant UI)│
@@ -64,6 +64,7 @@ The WebSocket server is built using an **Event-Driven Architecture** with Socket
                             │
                   2. Broadcasts Event
 
+```
 Local Setup & Installation
 Prerequisites
 Node.js (v18 or higher)
@@ -74,7 +75,7 @@ MongoDB Atlas database connection string
 
 1. Clone Repository
 Bash
-git clone [https://github.com/bushrak2005/YotubeWatchParty.git](https://github.com/bushrak2005/YotubeWatchParty.git)
+git clone https://github.com/bushrak2005/YotubeWatchParty.git
 cd YotubeWatchParty
 2. Backend Setup (server)
 Navigate into the server folder:
@@ -117,6 +118,7 @@ change-video	Client → Server	{ roomId, videoId }	Changes active YouTube video 
 assign-role	Client → Server	{ roomId, targetUsername, newRole }	Promotes/demotes participant role	Host Only
 remove-participant	Client → Server	{ roomId, targetUsername }	Kicks participant out of the room	Host Only
 send-message	Client → Server	{ roomId, username, message }	Broadcasts live chat message to room	Any
+
 🔮 Future Enhancements
 OOP Refactoring: Structuring server handlers into formal JavaScript ES6 classes (Room, Participant).
 
@@ -127,6 +129,6 @@ User Authentication: Implementing JWT login before joining watch parties.
 Emoji Reactions: Floating emoji reactions over video moments.
 
 🎥 Working Application Demo Video
-https://drive.google.com/file/d/15swgRxApU6YIRElJZgULWKm9TRdN8wQj/view?usp=drive_link
+[https://drive.google.com/file/d/15swgRxApU6YIRElJZgULWKm9TRdN8wQj/view?usp=drive_link](https://drive.google.com/file/d/1zuOwEWSSrc5Mu42afEDHKUEI325Qz9Ca/view?usp=drive_link)
 
 Note: Click the preview above or watch the video demo here.
