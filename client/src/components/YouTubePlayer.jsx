@@ -5,7 +5,7 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange, canControl }) => {
   if (!videoId) {
     return (
       <div style={{ height: '450px', background: '#000', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        Loading Video...
+        No video loaded yet. Host or Moderator can paste a YouTube URL above.
       </div>
     );
   }
@@ -14,11 +14,12 @@ const YouTubePlayer = ({ videoId, onReady, onStateChange, canControl }) => {
     height: '450',
     width: '100%',
     playerVars: {
-      autoplay: 1,
+      autoplay: 0,
       enablejsapi: 1,
       controls: canControl ? 1 : 0,
-      disablekb: canControl ? 0 : 1, // Keyboard shortcuts enabled ONLY for Host & Moderator
-      origin: window.location.origin,
+      disablekb: canControl ? 0 : 1,
+      rel: 0,
+      modestbranding: 1,
     },
   };
 

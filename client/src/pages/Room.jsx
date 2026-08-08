@@ -23,7 +23,6 @@ function Room() {
   const playerRef = useRef(null);
   const isRemoteAction = useRef(false);
   const chatBottomRef = useRef(null);
-  const redirectTimeout = useRef(null);
 
   const canControl = userRole === "Host" || userRole === "Moderator";
 
@@ -31,7 +30,6 @@ function Room() {
   const formatMessageTime = (timeString) => {
     if (!timeString) return "";
     const date = new Date(timeString);
-    // Checks if valid ISO/Date string; falls back if server sends raw formatted text
     return isNaN(date.getTime())
       ? timeString
       : date.toLocaleTimeString([], {
@@ -55,14 +53,13 @@ function Room() {
       socket.emit("join-room", { roomId, username });
     };
 
-    // Join room immediately if already connected
     if (socket.connected) {
       joinRoomSession();
     }
 
-    // Auto re-join if socket reconnects after network drop
     socket.on("connect", joinRoomSession);
 
+    // 1. Full State Sync
     socket.on("sync-state", async (data) => {
       console.log("Received sync-state:", data);
       if (data?.videoId) setVideoId(data.videoId);
@@ -71,7 +68,6 @@ function Room() {
       const serverPlaying = data?.isPlaying || false;
       setIsPlaying(serverPlaying);
 
-      // Force video player state alignment on join
       if (playerRef.current) {
         isRemoteAction.current = true;
         try {
@@ -88,12 +84,20 @@ function Room() {
         }
       }
     });
+
+    // 2. User Joined / Participant Updates
     socket.on("user-joined", (data) => {
       console.log("User joined update:", data);
       const list = data?.participants || [];
       setParticipants(list);
+
+      // Ensure video ID syncs if received
+      if (data?.videoId) {
+        setVideoId(data.videoId);
+      }
+
       const me = list.find(
-        (p) => p.username.toLowerCase() === username.toLowerCase(),
+        (p) => p.username.toLowerCase() === username.toLowerCase()
       );
       if (me) setUserRole(me.role);
     });
@@ -102,12 +106,18 @@ function Room() {
       setParticipants(data?.participants || []);
     });
 
+    // 3. Video Changed
     socket.on("video-changed", (data) => {
-      if (data?.videoId) setVideoId(data.videoId);
+      console.log("video-changed event:", data);
+      if (data?.videoId) {
+        setVideoId(data.videoId);
+      }
     });
 
+    // 4. Play / Pause / Seek Remote Events
     socket.on("play-video", async ({ currentTime }) => {
       console.log("Received play-video event:", currentTime);
+      setIsPlaying(true);
       if (!playerRef.current) return;
       isRemoteAction.current = true;
       try {
@@ -125,6 +135,7 @@ function Room() {
 
     socket.on("pause-video", async ({ currentTime }) => {
       console.log("Received pause-video event:", currentTime);
+      setIsPlaying(false);
       if (!playerRef.current) return;
       isRemoteAction.current = true;
       try {
@@ -150,35 +161,43 @@ function Room() {
       }
     });
 
+    // 5. Role Assigned
     socket.on("role-assigned", (data) => {
+      console.log("role-assigned event:", data);
       const list = data?.participants || [];
       setParticipants(list);
+
+      // Ensure video ID syncs during role change
+      if (data?.videoId) {
+        setVideoId(data.videoId);
+      }
+
       const me = list.find(
-        (p) => p.username.toLowerCase() === username.toLowerCase(),
+        (p) => p.username.toLowerCase() === username.toLowerCase()
       );
       if (me) setUserRole(me.role);
     });
 
+    // 6. Kick Event Listener (Guaranteed Execution)
     socket.on("kicked-out", (data) => {
-      const kickedUser = data?.targetUsernameLower || "";
+      console.log("kicked-out event received:", data);
+      const kickedUser = (data?.targetUsernameLower || data?.targetUsername || "").toLowerCase();
       const myUsername = (username || "").toLowerCase();
 
       if (kickedUser === myUsername) {
+        setKickNotice("You have been removed from the watch party.");
         alert("You have been removed from the watch party.");
         navigate("/");
       }
     });
 
+    // 7. Live Chat Messages
     socket.on("receive-message", (data) => {
       console.log("Received message:", data);
       setMessages((prev) => [...prev, data]);
     });
 
     return () => {
-      if (redirectTimeout.current) {
-        clearTimeout(redirectTimeout.current);
-      }
-
       socket.off("connect", joinRoomSession);
       socket.off("sync-state");
       socket.off("user-joined");
@@ -197,7 +216,7 @@ function Room() {
     if (!videoUrl) return;
 
     const match = videoUrl.match(
-      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/,
+      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
     );
     const id = match ? match[1] : null;
 
@@ -219,12 +238,12 @@ function Room() {
   const handlePlayerReady = async (playerInstance) => {
     playerRef.current = playerInstance;
 
-    // If the host is currently paused when participant joins, force pause
+    // Align initial playback state on ready
     if (!isPlaying) {
       try {
         await playerInstance.pauseVideo();
       } catch (err) {
-        console.error("Error setting initial pause state:", err);
+        console.error("Error applying initial pause state:", err);
       }
     }
   };
@@ -239,9 +258,15 @@ function Room() {
 
     const currentTime = await playerRef.current.getCurrentTime();
 
-    if (event.data === 1) socket.emit("play-video", { roomId, currentTime });
-    if (event.data === 2) socket.emit("pause-video", { roomId, currentTime });
-    if (event.data === 3) socket.emit("seek-video", { roomId, currentTime });
+    if (event.data === 1) {
+      setIsPlaying(true);
+      socket.emit("play-video", { roomId, currentTime });
+    } else if (event.data === 2) {
+      setIsPlaying(false);
+      socket.emit("pause-video", { roomId, currentTime });
+    } else if (event.data === 3) {
+      socket.emit("seek-video", { roomId, currentTime });
+    }
   };
 
   const handleAssignRole = (targetUsername, currentRole) => {
@@ -281,7 +306,7 @@ function Room() {
             top: 14,
             left: "50%",
             transform: "translateX(-50%)",
-            zIndex: 20,
+            zIndex: 99999,
             background: "#ffe6e6",
             color: "#8a1f23",
             border: "1px solid #d88585",
