@@ -18,10 +18,12 @@ function Room() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
+  const [kickNotice, setKickNotice] = useState("");
 
   const playerRef = useRef(null);
   const isRemoteAction = useRef(false);
   const chatBottomRef = useRef(null);
+  const redirectTimeout = useRef(null);
 
   const canControl = userRole === "Host" || userRole === "Moderator";
 
@@ -157,9 +159,17 @@ function Room() {
       if (me) setUserRole(me.role);
     });
 
-    socket.on("kicked-out", () => {
-      alert("You have been removed from the watch party.");
-      navigate("/");
+    socket.on("kicked-out", (data) => {
+      const reason = data?.message || "You have been removed from the watch party.";
+      setKickNotice(reason);
+
+      if (redirectTimeout.current) {
+        clearTimeout(redirectTimeout.current);
+      }
+
+      redirectTimeout.current = setTimeout(() => {
+        navigate("/");
+      }, 1600);
     });
 
     socket.on("receive-message", (data) => {
@@ -168,6 +178,10 @@ function Room() {
     });
 
     return () => {
+      if (redirectTimeout.current) {
+        clearTimeout(redirectTimeout.current);
+      }
+
       socket.off("connect", joinRoomSession);
       socket.off("sync-state");
       socket.off("user-joined");
@@ -225,7 +239,7 @@ function Room() {
     }
 
     if (!canControl || !playerRef.current) return;
-    
+
     const currentTime = await playerRef.current.getCurrentTime();
 
     if (event.data === 1) socket.emit("play-video", { roomId, currentTime });
@@ -263,6 +277,28 @@ function Room() {
 
   return (
     <div className="room-container">
+      {kickNotice && (
+        <div
+          style={{
+            position: "fixed",
+            top: 14,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 20,
+            background: "#ffe6e6",
+            color: "#8a1f23",
+            border: "1px solid #d88585",
+            borderRadius: 12,
+            padding: "12px 22px",
+            fontWeight: 700,
+            boxShadow: "0 12px 30px rgba(0,0,0,0.2)",
+            textAlign: "center",
+          }}
+        >
+          {kickNotice}
+        </div>
+      )}
+
       {/* Header */}
       <header className="header">
         <div className="logo-group">
