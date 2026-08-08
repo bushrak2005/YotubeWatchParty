@@ -22,9 +22,19 @@ function Room() {
 
   const playerRef = useRef(null);
   const isRemoteAction = useRef(false);
+  const remoteActionTimer = useRef(null);
   const chatBottomRef = useRef(null);
 
   const canControl = userRole === "Host" || userRole === "Moderator";
+
+  // Lock local socket emissions during remote actions to break ping-pong loops
+  const setRemoteLock = () => {
+    isRemoteAction.current = true;
+    if (remoteActionTimer.current) clearTimeout(remoteActionTimer.current);
+    remoteActionTimer.current = setTimeout(() => {
+      isRemoteAction.current = false;
+    }, 800);
+  };
 
   // Format message timestamp dynamically to local user time
   const formatMessageTime = (timeString) => {
@@ -69,7 +79,7 @@ function Room() {
       setIsPlaying(serverPlaying);
 
       if (playerRef.current) {
-        isRemoteAction.current = true;
+        setRemoteLock();
         try {
           if (data?.currentTime !== undefined) {
             await playerRef.current.seekTo(data.currentTime, true);
@@ -91,7 +101,6 @@ function Room() {
       const list = data?.participants || [];
       setParticipants(list);
 
-      // Ensure video ID syncs if received
       if (data?.videoId) {
         setVideoId(data.videoId);
       }
@@ -119,11 +128,11 @@ function Room() {
       console.log("Received play-video event:", currentTime);
       setIsPlaying(true);
       if (!playerRef.current) return;
-      isRemoteAction.current = true;
+      setRemoteLock();
       try {
         if (currentTime !== undefined) {
           const pTime = await playerRef.current.getCurrentTime();
-          if (Math.abs(pTime - currentTime) > 0.5) {
+          if (Math.abs(pTime - currentTime) > 1.5) {
             await playerRef.current.seekTo(currentTime, true);
           }
         }
@@ -137,7 +146,7 @@ function Room() {
       console.log("Received pause-video event:", currentTime);
       setIsPlaying(false);
       if (!playerRef.current) return;
-      isRemoteAction.current = true;
+      setRemoteLock();
       try {
         if (currentTime !== undefined) {
           await playerRef.current.seekTo(currentTime, true);
@@ -151,7 +160,7 @@ function Room() {
     socket.on("seek-video", async ({ currentTime }) => {
       console.log("Received seek-video event:", currentTime);
       if (!playerRef.current) return;
-      isRemoteAction.current = true;
+      setRemoteLock();
       try {
         if (currentTime !== undefined) {
           await playerRef.current.seekTo(currentTime, true);
@@ -167,7 +176,6 @@ function Room() {
       const list = data?.participants || [];
       setParticipants(list);
 
-      // Ensure video ID syncs during role change
       if (data?.videoId) {
         setVideoId(data.videoId);
       }
@@ -178,7 +186,7 @@ function Room() {
       if (me) setUserRole(me.role);
     });
 
-    // 6. Kick Event Listener (Guaranteed Execution)
+    // 6. Kick Event Listener
     socket.on("kicked-out", (data) => {
       console.log("kicked-out event received:", data);
       const kickedUser = (data?.targetUsernameLower || data?.targetUsername || "").toLowerCase();
@@ -198,6 +206,7 @@ function Room() {
     });
 
     return () => {
+      if (remoteActionTimer.current) clearTimeout(remoteActionTimer.current);
       socket.off("connect", joinRoomSession);
       socket.off("sync-state");
       socket.off("user-joined");
@@ -238,7 +247,6 @@ function Room() {
   const handlePlayerReady = async (playerInstance) => {
     playerRef.current = playerInstance;
 
-    // Align initial playback state on ready
     if (!isPlaying) {
       try {
         await playerInstance.pauseVideo();
@@ -249,13 +257,12 @@ function Room() {
   };
 
   const handlePlayerStateChange = async (event) => {
-    if (isRemoteAction.current) {
-      isRemoteAction.current = false;
-      return;
-    }
+    // Ignore state changes triggered during active remote lock
+    if (isRemoteAction.current) return;
 
     if (!canControl || !playerRef.current) return;
 
+    // Only allow explicit PLAYING (1) and PAUSED (2) user events
     if (event.data !== 1 && event.data !== 2) {
       return;
     }
