@@ -15,7 +15,7 @@ function Room() {
   const [videoUrl, setVideoUrl] = useState("");
   const [videoId, setVideoId] = useState("");
   const [userRole, setUserRole] = useState("Participant");
-
+  const [isPlaying, setIsPlaying] = useState(false);
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
 
@@ -61,12 +61,31 @@ function Room() {
     // Auto re-join if socket reconnects after network drop
     socket.on("connect", joinRoomSession);
 
-    socket.on("sync-state", (data) => {
+    socket.on("sync-state", async (data) => {
       console.log("Received sync-state:", data);
       if (data?.videoId) setVideoId(data.videoId);
       if (data?.userRole) setUserRole(data.userRole);
-    });
 
+      const serverPlaying = data?.isPlaying || false;
+      setIsPlaying(serverPlaying);
+
+      // Force video player state alignment on join
+      if (playerRef.current) {
+        isRemoteAction.current = true;
+        try {
+          if (data?.currentTime !== undefined) {
+            await playerRef.current.seekTo(data.currentTime, true);
+          }
+          if (serverPlaying) {
+            await playerRef.current.playVideo();
+          } else {
+            await playerRef.current.pauseVideo();
+          }
+        } catch (err) {
+          console.error("Error aligning sync-state:", err);
+        }
+      }
+    });
     socket.on("user-joined", (data) => {
       console.log("User joined update:", data);
       const list = data?.participants || [];
@@ -186,8 +205,17 @@ function Room() {
     }
   };
 
-  const handlePlayerReady = (playerInstance) => {
+  const handlePlayerReady = async (playerInstance) => {
     playerRef.current = playerInstance;
+
+    // If the host is currently paused when participant joins, force pause
+    if (!isPlaying) {
+      try {
+        await playerInstance.pauseVideo();
+      } catch (err) {
+        console.error("Error setting initial pause state:", err);
+      }
+    }
   };
 
   const handlePlayerStateChange = async (event) => {
@@ -196,9 +224,8 @@ function Room() {
       return;
     }
 
-    if (!canControl) return;
-
-    if (!playerRef.current) return;
+    if (!canControl || !playerRef.current) return;
+    
     const currentTime = await playerRef.current.getCurrentTime();
 
     if (event.data === 1) socket.emit("play-video", { roomId, currentTime });
