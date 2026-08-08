@@ -129,6 +129,6 @@ User Authentication: Implementing JWT login before joining watch parties.
 Emoji Reactions: Floating emoji reactions over video moments.
 
 🎥 Working Application Demo Video
-[https://drive.google.com/file/d/15swgRxApU6YIRElJZgULWKm9TRdN8wQj/view?usp=drive_link](https://drive.google.com/file/d/1zuOwEWSSrc5Mu42afEDHKUEI325Qz9Ca/view?usp=drive_link)
+[[https://drive.google.com/file/d/15swgRxApU6YIRElJZgULWKm9TRdN8wQj/view?us](https://drive.google.com/file/d/1MhnxTdbpGJqaXqEH_XrUR6tj-xBWzDnY/view?usp=drive_link)
 
 Note: Click the preview above or watch the video demo here.
